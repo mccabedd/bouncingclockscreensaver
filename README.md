@@ -73,6 +73,11 @@ The config dialog (`/c`) is organized into five tabs: **Time**, **Date**,
 - **General**: movement speed, background color, monospaced-font filter —
   unchanged.
 
+## Logos
+
+- Please note that the recommended logo type is a .png file with a transparent background.
+- Logo colours cannot be edited or changed within the screensaver, and need to be set prior to choosing, using your favourite photo editing software.
+
 ### Custom Time/Date format strings
 
 Both the Time and Date fields accept a **.NET custom date/time format
@@ -164,9 +169,9 @@ preview-window handle, so it's not practical to invoke by hand.)
 
 ## Contributing
 
-Issues and pull requests are welcome. There's no CI pipeline — before
-submitting a change, please confirm `dotnet build -c Release` still succeeds
-with 0 warnings/errors and that `/c` and `/s` both still run correctly.
+- Issues and pull requests will be ignored. This is a small personal project, and I have no time to troubleshoot individual issues.
+- There's no CI pipeline — before submitting a change, please confirm `dotnet build -c Release` still succeeds with 0 warnings/errors and that `/c` and `/s` both still run correctly.
+- If you do decide to rebuild, share or fork and customize to your own needs and requirements, at least do the minimal and honourable thing and acknowledge the existence of this page.
 
 ## License
 
