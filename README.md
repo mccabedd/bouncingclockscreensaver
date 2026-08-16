@@ -12,8 +12,12 @@ A small personal project (built with AI assistance). Issues and pull requests wi
 
 Built with C# / .NET 8 WinForms.
 
+## Screenshots
+
 <img src="docs/bouncing_clock_demo.gif">
-<img src="docs/01.png" width="200"><img src="docs/02.png" width="200"><img src="docs/03.png" width="200"><img src="docs/04.png" width="200"><img src="docs/05.png" width="200">
+
+| <img src="docs/01.png" width="200"> | <img src="docs/02.png" width="200"> | <img src="docs/03.png" width="200"> | <img src="docs/04.png" width="200"> | <img src="docs/05.png" width="200"> |
+| ----------------------------------- | ----------------------------------- | ----------------------------------- | ----------------------------------- | ----------------------------------- |
 
 
 ## Project layout
