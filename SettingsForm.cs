@@ -153,7 +153,7 @@ literal text can be freely mixed:
 
     private void BuildLayout()
     {
-        var tabs = new TabControl { Location = new Point(12, 12), Size = new Size(560, 420) };
+        var tabs = new TabControl { Location = new Point(12, 12), Size = new Size(560, 290) };
 
         var timeTab = new TabPage("Time");
         var dateTab = new TabPage("Date");
@@ -320,26 +320,29 @@ literal text can be freely mixed:
 
     private void BuildLogoTab(TabPage page)
     {
-        const int labelX = 16, controlX = 130, rowH = 30;
-        int y = 16;
+        const int labelX = 16, controlX = 130;
 
-        _enableLogoCheck = new CheckBox { Text = "Enable Logo", Location = new Point(labelX, y), AutoSize = true };
+        // The Logo tab has fewer field groups than Time/Date, but shares the
+        // same TabControl size (so all tabs stay visually consistent) — these
+        // offsets are spread out deliberately, rather than reusing the tighter
+        // rowH used above, so the tab doesn't end in a large empty gap.
+        _enableLogoCheck = new CheckBox { Text = "Enable Logo", Location = new Point(labelX, 16), AutoSize = true };
         _enableLogoCheck.CheckedChanged += (_, _) => UpdateLogoControlsEnabled();
         page.Controls.Add(_enableLogoCheck);
-        y += rowH + 4;
 
-        page.Controls.Add(MakeLabel("Image:", labelX, y + 3));
-        _logoPathBox = new TextBox { Location = new Point(controlX, y), Width = 260, ReadOnly = true };
+        const int imageY = 76;
+        page.Controls.Add(MakeLabel("Image:", labelX, imageY + 3));
+        _logoPathBox = new TextBox { Location = new Point(controlX, imageY), Width = 260, ReadOnly = true };
         page.Controls.Add(_logoPathBox);
-        _logoBrowseButton = new Button { Text = "Browse...", Location = new Point(controlX + 268, y - 2), Width = 100 };
+        _logoBrowseButton = new Button { Text = "Browse...", Location = new Point(controlX + 268, imageY - 2), Width = 100 };
         _logoBrowseButton.Click += LogoBrowseButton_Click;
         page.Controls.Add(_logoBrowseButton);
-        y += rowH + 6;
 
-        page.Controls.Add(MakeLabel("Size (-10..+10):", labelX, y + 3));
+        const int sizeY = 136;
+        page.Controls.Add(MakeLabel("Size (-10..+10):", labelX, sizeY + 3));
         _logoSizeTrack = new TrackBar
         {
-            Location = new Point(controlX - 4, y - 4),
+            Location = new Point(controlX - 4, sizeY - 4),
             Width = 260,
             Minimum = -10,
             Maximum = 10,
@@ -349,12 +352,12 @@ literal text can be freely mixed:
         };
         _logoSizeTrack.ValueChanged += (_, _) => _logoSizeValueLabel.Text = _logoSizeTrack.Value.ToString();
         page.Controls.Add(_logoSizeTrack);
-        _logoSizeValueLabel = new Label { Location = new Point(controlX + 264, y + 3), AutoSize = true };
+        _logoSizeValueLabel = new Label { Location = new Point(controlX + 264, sizeY + 3), AutoSize = true };
         page.Controls.Add(_logoSizeValueLabel);
-        y += rowH + 16;
 
-        page.Controls.Add(MakeLabel("Justification:", labelX, y + 3));
-        _logoJustificationCombo = MakeJustificationCombo(controlX, y, 120);
+        const int justificationY = 204;
+        page.Controls.Add(MakeLabel("Justification:", labelX, justificationY + 3));
+        _logoJustificationCombo = MakeJustificationCombo(controlX, justificationY, 120);
         page.Controls.Add(_logoJustificationCombo);
     }
 
@@ -373,7 +376,7 @@ literal text can be freely mixed:
         page.Controls.Add(info);
         y += 44;
 
-        _orderList = new ListBox { Location = new Point(labelX, y), Width = 220, Height = 90 };
+        _orderList = new ListBox { Location = new Point(labelX, y), Width = 220, Height = 160 };
         page.Controls.Add(_orderList);
 
         _orderUpButton = new Button { Text = "Move Up", Location = new Point(labelX + 232, y), Width = 100 };
@@ -387,21 +390,23 @@ literal text can be freely mixed:
 
     private void BuildGeneralTab(TabPage page)
     {
-        const int labelX = 16, controlX = 200, rowH = 30;
-        int y = 16;
+        const int labelX = 16, controlX = 200;
 
-        page.Controls.Add(MakeLabel("Movement Speed (0-10):", labelX, y + 3));
-        _speedUpDown = new NumericUpDown { Location = new Point(controlX, y), Width = 60, Minimum = 0, Maximum = 10 };
+        // Only 3 field groups on this tab — spread across the same tab height
+        // the other, busier tabs use (rather than clustering at the top) so
+        // the tab doesn't end in a large empty gap.
+        page.Controls.Add(MakeLabel("Movement Speed (0-10):", labelX, 19));
+        _speedUpDown = new NumericUpDown { Location = new Point(controlX, 16), Width = 60, Minimum = 0, Maximum = 10 };
         page.Controls.Add(_speedUpDown);
-        y += rowH + 6;
 
-        page.Controls.Add(MakeLabel("Background:", labelX, y + 3));
-        _backgroundButton = new Button { Text = "Choose...", Location = new Point(controlX, y - 2), Width = 130, FlatStyle = FlatStyle.System };
+        const int backgroundY = 116;
+        page.Controls.Add(MakeLabel("Background:", labelX, backgroundY + 3));
+        _backgroundButton = new Button { Text = "Choose...", Location = new Point(controlX, backgroundY - 2), Width = 130, FlatStyle = FlatStyle.System };
         _backgroundButton.Click += (_, _) => PickColor(ref _backgroundColor, _backgroundButton);
         page.Controls.Add(_backgroundButton);
-        y += rowH + 10;
 
-        _monospaceOnlyCheck = new CheckBox { Text = "Show only monospaced fonts", Location = new Point(labelX, y), AutoSize = true };
+        const int monospaceY = 216;
+        _monospaceOnlyCheck = new CheckBox { Text = "Show only monospaced fonts", Location = new Point(labelX, monospaceY), AutoSize = true };
         _monospaceOnlyCheck.CheckedChanged += (_, _) => ReloadFontLists();
         page.Controls.Add(_monospaceOnlyCheck);
     }

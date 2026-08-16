@@ -112,7 +112,13 @@ public sealed class ScreensaverForm : Form
                 // Load via memory stream so the source file isn't left locked.
                 var bytes = File.ReadAllBytes(_settings.LogoPath);
                 using var ms = new MemoryStream(bytes);
-                _logoImage = Image.FromStream(ms);
+                using var loaded = Image.FromStream(ms);
+                // Image.FromStream keeps a live reference to the stream for
+                // on-demand decoding — it must stay open for the image's whole
+                // lifetime. Since `ms` is disposed when this method returns,
+                // clone into a self-contained Bitmap that owns its own pixel
+                // buffer before that happens.
+                _logoImage = new Bitmap(loaded);
             }
             catch
             {
@@ -522,12 +528,41 @@ public sealed class ScreensaverForm : Form
         SizeF logoSize = SizeF.Empty;
         if (showLogo)
         {
-            float baseHeight = Math.Clamp(_settings.TimeFontSize * 0.8f, 16f, 260f);
-            // -10..+10 slider, each step is 8% of the base size either way.
-            float scale = 1f + _settings.LogoSizeAdjust * 0.08f;
-            float targetHeight = Math.Clamp(baseHeight * scale, 8f, 800f);
+            // Base size is screen-relative, NOT derived from TimeFontSize — it
+            // previously was (0.8x), which meant a small Time font (or a Time
+            // font set small independently of the logo) forced even a huge
+            // source image down to a sliver, with no way to fix it from the
+            // Logo tab itself. 12% of the screen's height is the slider's "0"
+            // (default) position; each step is still a 15% adjustment.
+            float baseHeight = _virtualSize.Height * 0.12f;
+            float scale = Math.Max(0.1f, 1f + _settings.LogoSizeAdjust * 0.15f);
+            float targetHeight = Math.Clamp(baseHeight * scale, 16f, 800f);
             float aspect = _logoImage!.Width / (float)Math.Max(1, _logoImage.Height);
-            logoSize = new SizeF(targetHeight * aspect, targetHeight);
+            float targetWidth = targetHeight * aspect;
+
+            // Safety net, independent of the above: never let the logo's
+            // footprint exceed a generous but bounded share of the screen.
+            // The height-driven sizing above only accounts for the Time font
+            // size and the slider — an extreme-aspect-ratio source image (a
+            // wide banner logo, say) or a large Time font could otherwise
+            // still compute a width that overflows the monitor, since nothing
+            // above ever looks at _virtualSize.
+            float maxWidth = _virtualSize.Width * 0.85f;
+            float maxHeight = _virtualSize.Height * 0.55f;
+            if (targetWidth > maxWidth)
+            {
+                float s = maxWidth / targetWidth;
+                targetWidth *= s;
+                targetHeight *= s;
+            }
+            if (targetHeight > maxHeight)
+            {
+                float s = maxHeight / targetHeight;
+                targetWidth *= s;
+                targetHeight *= s;
+            }
+
+            logoSize = new SizeF(targetWidth, targetHeight);
         }
 
         // Stack whichever of time/logo/date are actually enabled, top to bottom,
@@ -629,10 +664,14 @@ public sealed class ScreensaverForm : Form
         g.Restore(savedState);
     }
 
-    private static readonly PointF[] GlowOffsets =
+    // Unit directions for the halo pass; DrawGlowString scales these by a
+    // magnitude derived from the font size (see below) rather than using a
+    // fixed pixel offset — a fixed offset looked like a smudgy blur on a
+    // small font and was barely visible on a large one.
+    private static readonly PointF[] GlowDirections =
     {
-        new(-3, 0), new(3, 0), new(0, -3), new(0, 3),
-        new(-2, -2), new(2, 2), new(-2, 2), new(2, -2),
+        new(-1f, 0f), new(1f, 0f), new(0f, -1f), new(0f, 1f),
+        new(-0.7071f, -0.7071f), new(0.7071f, 0.7071f), new(-0.7071f, 0.7071f), new(0.7071f, -0.7071f),
     };
 
     // Must match the StringFormat used by MeasureInkBounds (GraphicsPath.AddString),
@@ -648,10 +687,14 @@ public sealed class ScreensaverForm : Form
     {
         if (glow)
         {
+            // Halo offset as a proportion of the font's point size (clamped to a
+            // sane pixel range), so the glow reads as a consistent, tight halo
+            // whether the Time font is set tiny or huge.
+            float magnitude = Math.Clamp(font.SizeInPoints * 0.04f, 1f, 6f);
             using var haloBrush = new SolidBrush(Color.FromArgb(50, color));
-            foreach (var off in GlowOffsets)
+            foreach (var dir in GlowDirections)
             {
-                g.DrawString(text, font, haloBrush, topLeft.X + off.X, topLeft.Y + off.Y, InkStringFormat);
+                g.DrawString(text, font, haloBrush, topLeft.X + dir.X * magnitude, topLeft.Y + dir.Y * magnitude, InkStringFormat);
             }
         }
 
