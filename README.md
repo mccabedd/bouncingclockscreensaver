@@ -8,10 +8,13 @@ A Windows screensaver: a large glowing digital clock (with optional date and
 logo) that bounces around the screen DVD-logo style, one independent instance
 per monitor, each correctly scaled for its own DPI.
 
+A small personal project (built with AI assistance). Issues and pull requests will be ignored, and I have no time to troubleshoot individual issues.
+
 Built with C# / .NET 8 WinForms.
 
-<!-- Add a screenshot or short GIF here, e.g.: -->
-<!-- ![Screenshot](docs/screenshot.png) -->
+<img src="docs/bouncing_clock_demo.gif">![[docs/bouncing_clock_demo.gif]]
+<img src="docs/01.png" width="200"><img src="docs/02.png" width="200"><img src="docs/03.png" width="200"><img src="docs/04.png" width="200"><img src="docs/05.png" width="200">
+
 
 ## Project layout
 
@@ -171,7 +174,7 @@ preview-window handle, so it's not practical to invoke by hand.)
 
 - Issues and pull requests will be ignored. This is a small personal project, and I have no time to troubleshoot individual issues.
 - There's no CI pipeline — before submitting a change, please confirm `dotnet build -c Release` still succeeds with 0 warnings/errors and that `/c` and `/s` both still run correctly.
-- If you do decide to rebuild, share or fork and customize to your own needs and requirements, at least do the minimal and honourable thing and acknowledge the existence of this page.
+- If you do decide to rebuild, share or fork and customize to your own needs and requirements, at least do the minimal and honourable thing and credit me / acknowledge the existence of this page.
 
 ## License
 
