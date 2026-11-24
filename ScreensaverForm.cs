@@ -101,8 +101,9 @@ public sealed class ScreensaverForm : Form
             _virtualSize = bounds.Size;
         }
 
+        // DoubleBuffered isn't also set here: its setter just applies the same
+        // AllPaintingInWmPaint | OptimizedDoubleBuffer styles already passed above.
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
-        DoubleBuffered = true;
 
         LoadLogo();
     }
@@ -239,8 +240,43 @@ public sealed class ScreensaverForm : Form
         _lastTicks = now;
         dt = Math.Min(dt, 0.1); // guard against huge jumps (e.g. debugger pause)
 
+        if (_isPreview)
+        {
+            // The preview window is a few hundred pixels at most, so a full
+            // repaint is already cheap, and _position/_cachedLayout live in
+            // primary-screen virtual pixels while Invalidate(Rectangle) needs
+            // client (device) pixels -- not worth the scaling-transform math.
+            Advance((float)dt);
+            Invalidate();
+            return;
+        }
+
+        // Full-screen mode: _virtualSize == ClientSize (no scaling transform),
+        // so the block's own bounds double as client coordinates. Only redraw
+        // the union of where the block *was* and *now is*, instead of clearing
+        // and repainting the whole monitor every tick for what is usually a
+        // small moving block of text.
+        var previousBounds = GetPaintedBounds(_cachedLayout, _position);
         Advance((float)dt);
-        Invalidate();
+        var newBounds = GetPaintedBounds(_cachedLayout, _position);
+        var dirty = RectangleF.Union(previousBounds, newBounds);
+
+        // Round outward (not Rectangle.Ceiling, which rounds every edge up --
+        // that would shrink the left/top edge inward and could clip a sliver
+        // of old content into view) so the invalidated region fully covers it.
+        int left = (int)Math.Floor(dirty.Left);
+        int top = (int)Math.Floor(dirty.Top);
+        int right = (int)Math.Ceiling(dirty.Right);
+        int bottom = (int)Math.Ceiling(dirty.Bottom);
+        Invalidate(Rectangle.FromLTRB(left, top, right, bottom));
+    }
+
+    // The block's own footprint, padded for the glow halo's pixel bleed (the
+    // halo magnitude is clamped to at most 6px; a couple more cover AA edges).
+    private static RectangleF GetPaintedBounds(ClockLayout layout, PointF position)
+    {
+        var bounds = new RectangleF(position, new SizeF(layout.BlockWidth, layout.BlockHeight));
+        return RectangleF.Inflate(bounds, 8f, 8f);
     }
 
     private void Advance(float dtSeconds)
