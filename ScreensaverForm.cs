@@ -678,12 +678,22 @@ public sealed class ScreensaverForm : Form
 
         g.Clear(_settings.BackgroundColor);
 
-        float scaleX = _isPreview ? ClientSize.Width / (float)_virtualSize.Width : 1f;
-        float scaleY = _isPreview ? ClientSize.Height / (float)_virtualSize.Height : 1f;
         var savedState = g.Save();
         if (_isPreview)
         {
-            g.ScaleTransform(scaleX, scaleY);
+            // A single uniform scale (not independent X/Y factors) keeps the
+            // preview's aspect ratio matching the real monitor's, since the
+            // preview child window's own aspect ratio won't always exactly
+            // match _virtualSize's -- an independent scaleX/scaleY would
+            // otherwise stretch the clock/logo non-uniformly. Any leftover
+            // space from fitting the longer axis is centered via translation.
+            float scaleX = ClientSize.Width / (float)_virtualSize.Width;
+            float scaleY = ClientSize.Height / (float)_virtualSize.Height;
+            float scale = Math.Min(scaleX, scaleY);
+            float offsetX = (ClientSize.Width - _virtualSize.Width * scale) / 2f;
+            float offsetY = (ClientSize.Height - _virtualSize.Height * scale) / 2f;
+            g.TranslateTransform(offsetX, offsetY);
+            g.ScaleTransform(scale, scale);
         }
 
         var layout = _cachedLayout;
