@@ -228,19 +228,22 @@ public sealed class ScreensaverForm : Form
 
     private void Advance(float dtSeconds)
     {
+        var block = ComputeLayout(_measureGraphics);
+        float maxX = Math.Max(0, _virtualSize.Width - block.BlockWidth);
+        float maxY = Math.Max(0, _virtualSize.Height - block.BlockHeight);
+
         if (_settings.MovementSpeed <= 0)
         {
+            // Still clamp: if the block's footprint grew (e.g. a taller logo)
+            // since the position was last set, don't leave it stranded off-screen.
+            _position = new PointF(Math.Clamp(_position.X, 0, maxX), Math.Clamp(_position.Y, 0, maxY));
             return;
         }
 
-        var block = ComputeLayout(_measureGraphics);
         float speedPxPerSec = _settings.MovementSpeed * 55f;
 
         float nx = _position.X + _direction.X * speedPxPerSec * dtSeconds;
         float ny = _position.Y + _direction.Y * speedPxPerSec * dtSeconds;
-
-        float maxX = Math.Max(0, _virtualSize.Width - block.BlockWidth);
-        float maxY = Math.Max(0, _virtualSize.Height - block.BlockHeight);
 
         if (nx < 0)
         {
