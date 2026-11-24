@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.Globalization;
 
@@ -656,9 +657,8 @@ public sealed class ScreensaverForm : Form
         if (layout.ShowTime && layout.TimeFont != null)
         {
             float elementLeft = AlignX(blockLeft, layout.BlockWidth, layout.TimeInk.Width, _settings.TimeJustification);
-            float drawX = elementLeft - layout.TimeInk.X;
-            float drawY = blockTop + layout.TimeY - layout.TimeInk.Y;
-            DrawGlowString(g, layout.TimeText, layout.TimeFont, _settings.TimeColor, new PointF(drawX, drawY));
+            DrawCachedGlyph(g, _timeGlyphCache, layout.TimeText, layout.TimeFont, _settings.TimeColor,
+                layout.TimeInk, elementLeft, blockTop + layout.TimeY, glow: true);
         }
 
         if (layout.ShowLogo && _logoImage != null)
@@ -671,9 +671,8 @@ public sealed class ScreensaverForm : Form
         if (layout.ShowDate && layout.DateFont != null)
         {
             float elementLeft = AlignX(blockLeft, layout.BlockWidth, layout.DateInk.Width, _settings.DateJustification);
-            float drawX = elementLeft - layout.DateInk.X;
-            float drawY = blockTop + layout.DateY - layout.DateInk.Y;
-            DrawGlowString(g, layout.DateText, layout.DateFont, _settings.DateColor, new PointF(drawX, drawY), glow: false);
+            DrawCachedGlyph(g, _dateGlyphCache, layout.DateText, layout.DateFont, _settings.DateColor,
+                layout.DateInk, elementLeft, blockTop + layout.DateY, glow: false);
         }
 
         g.Restore(savedState);
@@ -717,6 +716,69 @@ public sealed class ScreensaverForm : Form
         g.DrawString(text, font, mainBrush, topLeft.X, topLeft.Y, InkStringFormat);
     }
 
+    // Holds the last glyph bitmap rendered for one text element (time or date),
+    // plus the key (text/font/color) it was rendered for, so unchanged frames
+    // (the common case — the clock text only changes once a second) can blit
+    // instead of re-running DrawString and its glow halo passes.
+    private sealed class GlyphBitmapCache
+    {
+        public Bitmap? Bitmap;
+        public string? Text;
+        public Font? Font;
+        public Color Color;
+
+        // Pixel border baked into Bitmap on every side, beyond the measured ink
+        // bounds, to hold the glow halo (0 for the non-glow date text).
+        public float Margin;
+    }
+
+    private readonly GlyphBitmapCache _timeGlyphCache = new();
+    private readonly GlyphBitmapCache _dateGlyphCache = new();
+
+    private void DrawCachedGlyph(Graphics g, GlyphBitmapCache cache, string text, Font font, Color color,
+        RectangleF ink, float inkTargetLeft, float inkTargetTop, bool glow)
+    {
+        var bitmap = GetOrRenderGlyphBitmap(cache, text, font, color, ink, glow);
+        g.DrawImage(bitmap, inkTargetLeft - cache.Margin, inkTargetTop - cache.Margin);
+    }
+
+    // Rebuilds the cached bitmap only when the text, font (by reference — the
+    // active Time/Date Font instance only changes when its size/family actually
+    // changes, see EnsureFonts) or color differ from last frame.
+    private Bitmap GetOrRenderGlyphBitmap(GlyphBitmapCache cache, string text, Font font, Color color, RectangleF ink, bool glow)
+    {
+        if (cache.Bitmap != null && cache.Text == text && ReferenceEquals(cache.Font, font) && cache.Color == color)
+        {
+            return cache.Bitmap;
+        }
+
+        float margin = glow ? Math.Clamp(font.SizeInPoints * 0.04f, 1f, 6f) : 0f;
+        int width = Math.Max(1, (int)Math.Ceiling(ink.Width + margin * 2) + 1);
+        int height = Math.Max(1, (int)Math.Ceiling(ink.Height + margin * 2) + 1);
+
+        var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+        // Rendered at the same DPI that _measureGraphics used to compute `ink`
+        // (MeasureInkBounds), so the glyphs this bitmap paints land at the exact
+        // pixel size the ink-bounds math already accounted for — a fresh bitmap
+        // would otherwise default to 96 DPI and mis-scale on a scaled display.
+        bitmap.SetResolution(_measureGraphics.DpiX, _measureGraphics.DpiY);
+        using (var bitmapGraphics = Graphics.FromImage(bitmap))
+        {
+            bitmapGraphics.SmoothingMode = SmoothingMode.AntiAlias;
+            bitmapGraphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            var origin = new PointF(margin - ink.X, margin - ink.Y);
+            DrawGlowString(bitmapGraphics, text, font, color, origin, glow);
+        }
+
+        cache.Bitmap?.Dispose();
+        cache.Bitmap = bitmap;
+        cache.Text = text;
+        cache.Font = font;
+        cache.Color = color;
+        cache.Margin = margin;
+        return bitmap;
+    }
+
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         _timer.Stop();
@@ -726,6 +788,8 @@ public sealed class ScreensaverForm : Form
         _dateFont?.Dispose();
         _measureGraphics?.Dispose();
         _measureBitmap?.Dispose();
+        _timeGlyphCache.Bitmap?.Dispose();
+        _dateGlyphCache.Bitmap?.Dispose();
         if (!_isPreview)
         {
             Cursor.Show();
