@@ -176,7 +176,8 @@ public sealed class ScreensaverForm : Form
         }
         else
         {
-            Cursor.Hide();
+            // Cursor.Hide()/Show() is owned by Program.RunScreensaver, not by
+            // individual forms -- see the comment there.
             _inputBaseline = Cursor.Position;
             MouseMove += ScreensaverForm_MouseMove;
             MouseDown += (_, _) => RequestExit();
@@ -229,7 +230,6 @@ public sealed class ScreensaverForm : Form
     {
         if (_exitRequested) return;
         _exitRequested = true;
-        Cursor.Show();
         Application.Exit();
     }
 
@@ -869,10 +869,6 @@ public sealed class ScreensaverForm : Form
         _measureBitmap?.Dispose();
         _timeGlyphCache.Bitmap?.Dispose();
         _dateGlyphCache.Bitmap?.Dispose();
-        if (!_isPreview)
-        {
-            Cursor.Show();
-        }
         base.OnFormClosed(e);
     }
 }

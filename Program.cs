@@ -150,25 +150,38 @@ internal static class Program
         var settings = SettingsManager.Load();
         var forms = new List<ScreensaverForm>();
 
-        foreach (var screen in Screen.AllScreens)
+        // Cursor.Hide()/Show() wrap the Win32 ShowCursor call, which keeps a
+        // single reference count shared by every window on this thread -- so
+        // it's hidden/restored once here, rather than each per-monitor form
+        // owning its own Hide/Show pair, and restored in `finally` so it's
+        // never left hidden if something below throws.
+        Cursor.Hide();
+        try
         {
-            var form = new ScreensaverForm(settings, screen.Bounds, isPreview: false, IntPtr.Zero);
-            forms.Add(form);
-            form.Show();
+            foreach (var screen in Screen.AllScreens)
+            {
+                var form = new ScreensaverForm(settings, screen.Bounds, isPreview: false, IntPtr.Zero);
+                forms.Add(form);
+                form.Show();
+            }
+
+            // Give keyboard focus to the form on the primary monitor so KeyDown-based
+            // exit works predictably; every form still independently reacts to mouse
+            // input regardless of which one currently has focus.
+            var primary = forms.FirstOrDefault(f => f.Bounds == Screen.PrimaryScreen?.Bounds) ?? forms.FirstOrDefault();
+            primary?.Activate();
+
+            if (forms.Count == 0)
+            {
+                return;
+            }
+
+            Application.Run();
         }
-
-        // Give keyboard focus to the form on the primary monitor so KeyDown-based
-        // exit works predictably; every form still independently reacts to mouse
-        // input regardless of which one currently has focus.
-        var primary = forms.FirstOrDefault(f => f.Bounds == Screen.PrimaryScreen?.Bounds) ?? forms.FirstOrDefault();
-        primary?.Activate();
-
-        if (forms.Count == 0)
+        finally
         {
-            return;
+            Cursor.Show();
         }
-
-        Application.Run();
 
         foreach (var form in forms)
         {
