@@ -132,10 +132,29 @@ public sealed class ScreensaverForm : Form
                 // buffer before that happens.
                 _logoImage = new Bitmap(loaded);
             }
-            catch
+            catch (Exception ex)
             {
                 _logoImage = null;
+                LogLogoLoadFailure(ex);
             }
+        }
+    }
+
+    // Best-effort logging only -- a broken/missing logo file must never
+    // prevent the screensaver itself from running, so the failure is still
+    // swallowed after being recorded, mirroring Program.HandleFatal's
+    // crash-log pattern.
+    private static void LogLogoLoadFailure(Exception ex)
+    {
+        try
+        {
+            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BouncingClockScreensaver");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "logo-load.log"), $"{DateTime.Now:O}: {ex}\n\n");
+        }
+        catch
+        {
+            // Logging is itself best-effort; never let the logger throw.
         }
     }
 
