@@ -25,8 +25,8 @@ public sealed class ScreensaverForm : Form
     private PointF _direction;  // unit vector
 
     private Image? _logoImage;
-    private Bitmap _measureBitmap = new(1, 1);
-    private Graphics _measureGraphics;
+    private Bitmap? _measureBitmap;
+    private Graphics _measureGraphics = null!; // created once in OnLoad, once the form's final DPI context is known
 
     // Fonts are expensive GDI objects; cache and only rebuild when the backing
     // settings actually change, rather than allocating one every animation frame.
@@ -79,8 +79,6 @@ public sealed class ScreensaverForm : Form
         _settings = settings;
         _isPreview = isPreview;
         _previewParentHwnd = previewParentHwnd;
-
-        _measureGraphics = Graphics.FromImage(_measureBitmap);
 
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
@@ -158,6 +156,16 @@ public sealed class ScreensaverForm : Form
         if (_isPreview)
         {
             SetUpAsChildPreview();
+
+            // Layout is computed in primary-screen virtual pixels (see the
+            // constructor), so ink/width measurements must use the primary
+            // monitor's DPI — not the preview child window's own DPI, which
+            // can differ (e.g. the Settings dialog open on a different-DPI
+            // monitor than the primary).
+            float dpi = NativeMethods.GetDpiForSystem();
+            _measureBitmap = new Bitmap(1, 1);
+            _measureBitmap.SetResolution(dpi, dpi);
+            _measureGraphics = Graphics.FromImage(_measureBitmap);
         }
         else
         {
@@ -167,15 +175,12 @@ public sealed class ScreensaverForm : Form
             MouseDown += (_, _) => RequestExit();
             MouseWheel += (_, _) => RequestExit();
             KeyDown += (_, _) => RequestExit();
-        }
 
-        // Now that the window exists on its final monitor, swap the measurement
-        // Graphics for one sourced from the window itself so text metrics used for
-        // bounce-box physics match the DPI actually used when painting (a 1x1 bitmap
-        // is fixed at 96 DPI and would drift from real per-monitor scaling).
-        _measureGraphics.Dispose();
-        _measureBitmap.Dispose();
-        _measureGraphics = CreateGraphics();
+            // Sourced from the window itself so text metrics used for bounce-box
+            // physics match the DPI actually used when painting (a 1x1 bitmap
+            // would be fixed at 96 DPI and drift from real per-monitor scaling).
+            _measureGraphics = CreateGraphics();
+        }
 
         InitializeMotion();
 
@@ -719,8 +724,8 @@ public sealed class ScreensaverForm : Form
         _logoImage?.Dispose();
         _timeFont?.Dispose();
         _dateFont?.Dispose();
-        _measureGraphics.Dispose();
-        _measureBitmap.Dispose();
+        _measureGraphics?.Dispose();
+        _measureBitmap?.Dispose();
         if (!_isPreview)
         {
             Cursor.Show();
