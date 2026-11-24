@@ -1,5 +1,6 @@
 # Bouncing Clock Screensaver
 
+[![Build](https://github.com/mccabedd/bouncingclockscreensaver/actions/workflows/build.yml/badge.svg)](https://github.com/mccabedd/bouncingclockscreensaver/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![.NET 8](https://img.shields.io/badge/.NET-8-512BD4)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6)
@@ -33,7 +34,7 @@ Built with C# / .NET 8 WinForms.
 | `FontUtils.cs` | Heuristic monospace-font detection for the "Show only monospaced fonts" filter. |
 | `app.manifest` | OS-compatibility manifest (DPI awareness is instead configured via the `ApplicationHighDpiMode` project property — declaring it in both places is a build warning). |
 
-## How the requirements are met
+## How it works
 
 - **Command-line contract**: `Program.ParseMode` handles `/s`, `/c`, `/c:HWND`,
   `/p HWND`, and no-args-means-`/c`, accepting both `/` and `-` prefixes.
@@ -43,15 +44,15 @@ Built with C# / .NET 8 WinForms.
 - **Per-monitor DPI**: the project sets `ApplicationHighDpiMode=PerMonitorV2`,
   so each form gets true per-monitor DPI awareness. Font sizes are specified
   in points (not pixels), which GDI+ already renders at physically consistent
-  size per monitor DPI — no manual DPI math needed for text. The Graphics
-  object used to measure text for bounce-box physics is sourced from the
-  window itself (`CreateGraphics()`) rather than a fixed-DPI bitmap, so the
-  physics box matches what's actually painted on that monitor.
+  size per monitor DPI. The `Graphics` object used to measure text for the
+  bounce-box physics is sourced from the window itself rather than a
+  fixed-DPI bitmap, so the physics box matches what's actually painted on
+  that monitor.
 - **Preview (`/p`)**: `ScreensaverForm` reparents itself into the given HWND
-  (`SetParent` + `WS_CHILD`) and renders into a "virtual" canvas the size of
-  the primary monitor, scaled down to fit the tiny preview rect — the same
-  technique classic Windows screensavers use, so the miniature is a true
-  scaled-down simulation rather than a static thumbnail.
+  and renders into a "virtual" canvas the size of the primary monitor, scaled
+  down to fit the tiny preview rect — the same technique classic Windows
+  screensavers use, so the miniature is a true scaled-down simulation rather
+  than a static thumbnail.
 - **Settings persistence**: JSON file in `%APPDATA%`, shared by the config
   dialog and the running screensaver.
 - **Exit on input**: full-screen mode hides the cursor, records the starting
@@ -138,21 +139,22 @@ dotnet build -c Release
 
 Two options, trading install simplicity against file size:
 
-**Self-contained (recommended for distributing to a machine without .NET
-installed)** — bundles the whole runtime, ~160MB, no dependencies:
-
-```bash
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
-copy publish\BouncingClockScreensaver.exe publish\BouncingClockScreensaver.scr
-```
-
-**Framework-dependent (smaller, ~200KB)** — requires the [.NET 8 Desktop
+**Framework-dependent (recommended, ~200KB)** — requires the [.NET 8 Desktop
 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) to already be
-installed on the target machine:
+installed on the target machine, which is typical for a current Windows
+install:
 
 ```bash
 dotnet publish -c Release -o publish-fx
 copy publish-fx\BouncingClockScreensaver.exe publish-fx\BouncingClockScreensaver.scr
+```
+
+**Self-contained** — bundles the whole runtime, ~160MB, for a machine where
+the Desktop Runtime isn't installed and can't be:
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+copy publish\BouncingClockScreensaver.exe publish\BouncingClockScreensaver.scr
 ```
 
 ## Installing
@@ -177,7 +179,7 @@ preview-window handle, so it's not practical to invoke by hand.)
 ## Contributing
 
 - Issues and pull requests will be ignored. This is a small personal project, and I have no time to troubleshoot individual issues.
-- There's no CI pipeline — before submitting a change, please confirm `dotnet build -c Release` still succeeds with 0 warnings/errors and that `/c` and `/s` both still run correctly.
+- CI (`.github/workflows/build.yml`) builds Release on every push and fails on any warning, but it can't exercise `/c` or `/s` — before submitting a change, please also confirm those still run correctly by hand.
 - If you do decide to rebuild, share or fork and customize to your own needs and requirements, at least do the minimal and honourable thing and credit me / acknowledge the existence of this page.
 
 ## License
