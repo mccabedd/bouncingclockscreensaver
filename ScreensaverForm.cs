@@ -411,7 +411,7 @@ public sealed class ScreensaverForm : Form
     {
         using var path = new GraphicsPath();
         float emSizePx = font.SizeInPoints * g.DpiY / 72f;
-        path.AddString(text, font.FontFamily, (int)font.Style, emSizePx, PointF.Empty, StringFormat.GenericTypographic);
+        path.AddString(text, font.FontFamily, (int)font.Style, emSizePx, PointF.Empty, InkStringFormat);
         return path.GetBounds();
     }
 
