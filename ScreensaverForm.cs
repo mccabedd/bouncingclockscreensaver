@@ -69,6 +69,11 @@ public sealed class ScreensaverForm : Form
     private Point _inputBaseline;      // Cursor.Position recorded at startup, for exit-on-move detection
     private bool _exitRequested;
 
+    // Layout is computed once per tick (from _measureGraphics) and reused by
+    // OnPaint, rather than recomputed a second time from the paint Graphics —
+    // avoids doing the formatting/measuring/ordering work twice per frame.
+    private ClockLayout _cachedLayout;
+
     public ScreensaverForm(AppSettings settings, Rectangle bounds, bool isPreview, IntPtr previewParentHwnd)
     {
         _settings = settings;
@@ -130,7 +135,8 @@ public sealed class ScreensaverForm : Form
     private void InitializeMotion()
     {
         var rnd = new Random();
-        var block = ComputeLayout(_measureGraphics);
+        _cachedLayout = ComputeLayout(_measureGraphics);
+        var block = _cachedLayout;
 
         float maxX = Math.Max(0, _virtualSize.Width - block.BlockWidth);
         float maxY = Math.Max(0, _virtualSize.Height - block.BlockHeight);
@@ -228,7 +234,8 @@ public sealed class ScreensaverForm : Form
 
     private void Advance(float dtSeconds)
     {
-        var block = ComputeLayout(_measureGraphics);
+        _cachedLayout = ComputeLayout(_measureGraphics);
+        var block = _cachedLayout;
         float maxX = Math.Max(0, _virtualSize.Width - block.BlockWidth);
         float maxY = Math.Max(0, _virtualSize.Height - block.BlockHeight);
 
@@ -632,7 +639,7 @@ public sealed class ScreensaverForm : Form
             g.ScaleTransform(scaleX, scaleY);
         }
 
-        var layout = ComputeLayout(g);
+        var layout = _cachedLayout;
 
         float blockLeft = _position.X;
         float blockTop = _position.Y;
