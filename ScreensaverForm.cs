@@ -224,8 +224,7 @@ public sealed class ScreensaverForm : Form
         if (_previewParentHwnd == IntPtr.Zero) return;
 
         int style = NativeMethods.GetWindowLong(Handle, NativeMethods.GWL_STYLE);
-        const int WS_POPUP = unchecked((int)0x80000000);
-        style = (style & ~WS_POPUP) | NativeMethods.WS_CHILD | NativeMethods.WS_VISIBLE;
+        style = (style & ~NativeMethods.WS_POPUP) | NativeMethods.WS_CHILD | NativeMethods.WS_VISIBLE;
         NativeMethods.SetWindowLong(Handle, NativeMethods.GWL_STYLE, style);
         NativeMethods.SetParent(Handle, _previewParentHwnd);
 
@@ -236,12 +235,16 @@ public sealed class ScreensaverForm : Form
             NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
     }
 
+    // Squared so the comparison below can avoid a sqrt; corresponds to an
+    // ~8px movement threshold, chosen to ignore DPI-scaling/mouse jitter.
+    private const int MouseMoveExitThresholdSquaredPx = 64;
+
     private void ScreensaverForm_MouseMove(object? sender, MouseEventArgs e)
     {
         var current = Cursor.Position;
         int dx = current.X - _inputBaseline.X;
         int dy = current.Y - _inputBaseline.Y;
-        if ((dx * dx + dy * dy) > 64) // ~8px movement threshold, ignores DPI-scaling jitter
+        if ((dx * dx + dy * dy) > MouseMoveExitThresholdSquaredPx)
         {
             RequestExit();
         }
@@ -300,6 +303,11 @@ public sealed class ScreensaverForm : Form
         return RectangleF.Inflate(bounds, 8f, 8f);
     }
 
+    // MovementSpeed is a user-facing slider value (roughly "units" rather than
+    // pixels); this is just the scale factor that turns one unit into a
+    // screen-independent pixels-per-second rate.
+    private const float MovementSpeedPixelsPerSecondPerUnit = 55f;
+
     private void Advance(float dtSeconds)
     {
         _cachedLayout = ComputeLayout(_measureGraphics);
@@ -315,7 +323,7 @@ public sealed class ScreensaverForm : Form
             return;
         }
 
-        float speedPxPerSec = _settings.MovementSpeed * 55f;
+        float speedPxPerSec = _settings.MovementSpeed * MovementSpeedPixelsPerSecondPerUnit;
 
         float nx = _position.X + _direction.X * speedPxPerSec * dtSeconds;
         float ny = _position.Y + _direction.Y * speedPxPerSec * dtSeconds;
@@ -436,9 +444,10 @@ public sealed class ScreensaverForm : Form
 
     private RectangleF GetTimeInk(Graphics g, string text)
     {
+        if (_timeFont == null) return RectangleF.Empty;
         if (_cachedTimeInkText != text || _cachedTimeInkFont != _timeFont)
         {
-            _timeInkBounds = MeasureInkBounds(g, text, _timeFont!);
+            _timeInkBounds = MeasureInkBounds(g, text, _timeFont);
             _cachedTimeInkText = text;
             _cachedTimeInkFont = _timeFont;
         }
@@ -578,6 +587,11 @@ public sealed class ScreensaverForm : Form
         _ => blockLeft + (blockWidth - elementWidth) / 2f,
     };
 
+    // Safety-net bounds on the logo's footprint, as a fraction of the screen,
+    // independent of the height-driven sizing in ComputeLayout below.
+    private const float LogoMaxWidthFraction = 0.85f;
+    private const float LogoMaxHeightFraction = 0.55f;
+
     private ClockLayout ComputeLayout(Graphics g)
     {
         EnsureFonts();
@@ -627,8 +641,8 @@ public sealed class ScreensaverForm : Form
             // wide banner logo, say) or a large Time font could otherwise
             // still compute a width that overflows the monitor, since nothing
             // above ever looks at _virtualSize.
-            float maxWidth = _virtualSize.Width * 0.85f;
-            float maxHeight = _virtualSize.Height * 0.55f;
+            float maxWidth = _virtualSize.Width * LogoMaxWidthFraction;
+            float maxHeight = _virtualSize.Height * LogoMaxHeightFraction;
             if (targetWidth > maxWidth)
             {
                 float s = maxWidth / targetWidth;
@@ -774,14 +788,22 @@ public sealed class ScreensaverForm : Form
     // proportional to font size — this is what made the time text drift furthest).
     private static readonly StringFormat InkStringFormat = StringFormat.GenericTypographic;
 
+    // Halo offset as a proportion of the font's point size (clamped to a sane
+    // pixel range), so the glow reads as a consistent, tight halo whether the
+    // Time font is set tiny or huge. Shared by DrawGlowString (the halo offset
+    // itself) and GetOrRenderGlyphBitmap (the bitmap margin that has to hold it).
+    private const float GlowMagnitudeFraction = 0.04f;
+    private const float GlowMagnitudeMinPx = 1f;
+    private const float GlowMagnitudeMaxPx = 6f;
+
+    private static float ComputeGlowMagnitude(Font font) =>
+        Math.Clamp(font.SizeInPoints * GlowMagnitudeFraction, GlowMagnitudeMinPx, GlowMagnitudeMaxPx);
+
     private static void DrawGlowString(Graphics g, string text, Font font, Color color, PointF topLeft, bool glow = true)
     {
         if (glow)
         {
-            // Halo offset as a proportion of the font's point size (clamped to a
-            // sane pixel range), so the glow reads as a consistent, tight halo
-            // whether the Time font is set tiny or huge.
-            float magnitude = Math.Clamp(font.SizeInPoints * 0.04f, 1f, 6f);
+            float magnitude = ComputeGlowMagnitude(font);
             using var haloBrush = new SolidBrush(Color.FromArgb(50, color));
             foreach (var dir in GlowDirections)
             {
@@ -863,7 +885,7 @@ public sealed class ScreensaverForm : Form
             return cache.Bitmap;
         }
 
-        float margin = glow ? Math.Clamp(font.SizeInPoints * 0.04f, 1f, 6f) : 0f;
+        float margin = glow ? ComputeGlowMagnitude(font) : 0f;
         int width = Math.Max(1, (int)Math.Ceiling(ink.Width + margin * 2) + 1);
         int height = Math.Max(1, (int)Math.Ceiling(ink.Height + margin * 2) + 1);
 
