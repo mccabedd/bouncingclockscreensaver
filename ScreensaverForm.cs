@@ -608,12 +608,18 @@ public sealed class ScreensaverForm : Form
         {
             timeInk = GetTimeInk(g, timeText);
             EnsureTimeSlotWidth(g);
+            // ComputeWorstCaseWidth varies one field (month, weekday, hour, ...) at a
+            // time rather than every combination at once, so a real value can still
+            // render wider than its sampled estimate. Widen (never shrink) rather than
+            // let the bounce-box clamp (which trusts this slot width) clip it off-screen.
+            if (timeInk.Width > _timeSlotWidth) _timeSlotWidth = timeInk.Width;
         }
         RectangleF dateInk = RectangleF.Empty;
         if (showDate)
         {
             dateInk = GetDateInk(g, dateText);
             EnsureDateSlotWidth(g);
+            if (dateInk.Width > _dateSlotWidth) _dateSlotWidth = dateInk.Width;
         }
 
         float gap = Math.Max(6f, _settings.TimeFontSize * 0.18f);
