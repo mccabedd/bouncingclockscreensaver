@@ -149,7 +149,7 @@ dotnet publish -c Release -o publish-fx
 copy publish-fx\BouncingClockScreensaver.exe publish-fx\BouncingClockScreensaver.scr
 ```
 
-**Self-contained** — bundles the whole runtime, ~160MB, for a machine where
+**Self-contained** — bundles the whole runtime, ~110MB, for a machine where
 the Desktop Runtime isn't installed and can't be:
 
 ```bash
