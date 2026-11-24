@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/mccabedd/bouncingclockscreensaver/actions/workflows/build.yml/badge.svg)](https://github.com/mccabedd/bouncingclockscreensaver/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![.NET 8](https://img.shields.io/badge/.NET-8-512BD4)
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6)
 
 A Windows screensaver: a large glowing digital clock (with optional date and
@@ -11,7 +11,7 @@ per monitor, each correctly scaled for its own DPI.
 
 A small personal project (built with AI assistance). Issues and pull requests will be ignored, and I have no time to troubleshoot individual issues.
 
-Built with C# / .NET 8 WinForms.
+Built with C# / .NET 10 WinForms.
 
 ## Screenshots
 
@@ -129,7 +129,7 @@ across a representative spread of values, not just the current instant.
 
 ## Building
 
-Requires the .NET 8 SDK.
+Requires the .NET 10 SDK.
 
 ```bash
 dotnet build -c Release
@@ -139,8 +139,8 @@ dotnet build -c Release
 
 Two options, trading install simplicity against file size:
 
-**Framework-dependent (recommended, ~200KB)** — requires the [.NET 8 Desktop
-Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) to already be
+**Framework-dependent (recommended, ~150KB)** — requires the [.NET 10 Desktop
+Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) to already be
 installed on the target machine, which is typical for a current Windows
 install:
 

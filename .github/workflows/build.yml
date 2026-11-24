@@ -12,7 +12,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       # --warnaserror enforces the README's "0 warnings, 0 errors" requirement
       # by failing CI the moment a warning is introduced, not just an error.
