@@ -64,9 +64,11 @@ public sealed class ScreensaverForm : Form
     // instance, format string) via reference equality on the font, mirroring
     // the ink-bounds caches above.
     private float _timeSlotWidth;
+    private bool _timeSlotWidthComputed;
     private Font? _cachedTimeSlotFont;
     private string? _cachedTimeSlotFormat;
     private float _dateSlotWidth;
+    private bool _dateSlotWidthComputed;
     private Font? _cachedDateSlotFont;
     private string? _cachedDateSlotFormat;
 
@@ -525,11 +527,12 @@ public sealed class ScreensaverForm : Form
     private void EnsureTimeSlotWidth(Graphics g)
     {
         if (_timeFont == null) return;
-        if (_cachedTimeSlotFont == _timeFont && _cachedTimeSlotFormat == _settings.TimeFormat && _timeSlotWidth > 0)
+        if (_timeSlotWidthComputed && _cachedTimeSlotFont == _timeFont && _cachedTimeSlotFormat == _settings.TimeFormat)
         {
             return;
         }
         _timeSlotWidth = ComputeWorstCaseWidth(g, _timeFont, _settings.TimeFormat);
+        _timeSlotWidthComputed = true;
         _cachedTimeSlotFont = _timeFont;
         _cachedTimeSlotFormat = _settings.TimeFormat;
     }
@@ -538,11 +541,12 @@ public sealed class ScreensaverForm : Form
     private void EnsureDateSlotWidth(Graphics g)
     {
         if (_dateFont == null) return;
-        if (_cachedDateSlotFont == _dateFont && _cachedDateSlotFormat == _settings.DateFormat && _dateSlotWidth > 0)
+        if (_dateSlotWidthComputed && _cachedDateSlotFont == _dateFont && _cachedDateSlotFormat == _settings.DateFormat)
         {
             return;
         }
         _dateSlotWidth = ComputeWorstCaseWidth(g, _dateFont, _settings.DateFormat);
+        _dateSlotWidthComputed = true;
         _cachedDateSlotFont = _dateFont;
         _cachedDateSlotFormat = _settings.DateFormat;
     }
