@@ -26,6 +26,9 @@ public sealed class ScreensaverForm : Form
     private PointF _direction;  // unit vector
 
     private Image? _logoImage;
+    private Bitmap? _scaledLogoBitmap;
+    private Image? _scaledLogoSource;
+    private Size _scaledLogoTargetSize;
     private Bitmap? _measureBitmap;
     private Graphics _measureGraphics = null!; // created once in OnLoad, once the form's final DPI context is known
 
@@ -108,6 +111,8 @@ public sealed class ScreensaverForm : Form
     {
         _logoImage?.Dispose();
         _logoImage = null;
+        _scaledLogoBitmap?.Dispose();
+        _scaledLogoBitmap = null;
 
         if (_settings.EnableLogo && !string.IsNullOrWhiteSpace(_settings.LogoPath) && File.Exists(_settings.LogoPath))
         {
@@ -664,8 +669,11 @@ public sealed class ScreensaverForm : Form
         if (layout.ShowLogo && _logoImage != null)
         {
             float elementLeft = AlignX(blockLeft, layout.BlockWidth, layout.LogoSize.Width, _settings.LogoJustification);
-            var logoRect = new RectangleF(elementLeft, blockTop + layout.LogoY, layout.LogoSize.Width, layout.LogoSize.Height);
-            g.DrawImage(_logoImage, logoRect);
+            var scaledLogo = GetScaledLogo(layout.LogoSize);
+            if (scaledLogo != null)
+            {
+                g.DrawImage(scaledLogo, elementLeft, blockTop + layout.LogoY, layout.LogoSize.Width, layout.LogoSize.Height);
+            }
         }
 
         if (layout.ShowDate && layout.DateFont != null)
@@ -735,6 +743,40 @@ public sealed class ScreensaverForm : Form
     private readonly GlyphBitmapCache _timeGlyphCache = new();
     private readonly GlyphBitmapCache _dateGlyphCache = new();
 
+    // Pre-scales the logo to its on-screen target size once, instead of letting
+    // DrawImage bicubic-resample the full source image on every repaint. Rebuilt
+    // only when the source image or the target pixel size actually changes --
+    // LogoSize is otherwise stable from one frame to the next.
+    private Bitmap? GetScaledLogo(SizeF targetSize)
+    {
+        if (_logoImage == null)
+        {
+            return null;
+        }
+
+        var targetPixelSize = new Size(
+            Math.Max(1, (int)Math.Ceiling(targetSize.Width)),
+            Math.Max(1, (int)Math.Ceiling(targetSize.Height)));
+
+        if (_scaledLogoBitmap != null && ReferenceEquals(_scaledLogoSource, _logoImage) && _scaledLogoTargetSize == targetPixelSize)
+        {
+            return _scaledLogoBitmap;
+        }
+
+        var bitmap = new Bitmap(targetPixelSize.Width, targetPixelSize.Height, PixelFormat.Format32bppArgb);
+        using (var bitmapGraphics = Graphics.FromImage(bitmap))
+        {
+            bitmapGraphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            bitmapGraphics.DrawImage(_logoImage, new Rectangle(Point.Empty, targetPixelSize));
+        }
+
+        _scaledLogoBitmap?.Dispose();
+        _scaledLogoBitmap = bitmap;
+        _scaledLogoSource = _logoImage;
+        _scaledLogoTargetSize = targetPixelSize;
+        return bitmap;
+    }
+
     private void DrawCachedGlyph(Graphics g, GlyphBitmapCache cache, string text, Font font, Color color,
         RectangleF ink, float inkTargetLeft, float inkTargetTop, bool glow)
     {
@@ -784,6 +826,7 @@ public sealed class ScreensaverForm : Form
         _timer.Stop();
         _timer.Tick -= Timer_Tick;
         _logoImage?.Dispose();
+        _scaledLogoBitmap?.Dispose();
         _timeFont?.Dispose();
         _dateFont?.Dispose();
         _measureGraphics?.Dispose();
